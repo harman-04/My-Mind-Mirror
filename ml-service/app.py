@@ -5,6 +5,10 @@ import os
 import logging
 import re
 
+# Import KeyBERT and SentenceTransformer for keyword extraction
+from keybert import KeyBERT
+from sentence_transformers import SentenceTransformer
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -20,7 +24,6 @@ os.environ['HF_HUB_ENABLE_HF_TRANSFER'] = '1'
 logger.info("Loading NLP Models...")
 
 # 1. Sentiment Analysis (fixed label handling)
-# This model gives 'LABEL_0' (negative), 'LABEL_1' (neutral), 'LABEL_2' (positive)
 try:
     sentiment_analyzer = pipeline(
         "sentiment-analysis",
@@ -32,7 +35,6 @@ except Exception as e:
     sentiment_analyzer = None
 
 # 2. Emotion Recognition (more granular emotions)
-# This model gives specific emotion labels like 'joy', 'sadness', 'anger', 'fear', etc.
 try:
     emotion_analyzer = pipeline(
         "text-classification", 
@@ -52,23 +54,66 @@ except Exception as e:
     logger.error(f"Failed to load summarizer: {e}")
     summarizer = None
 
-# --- Enhanced Core Concerns Detection ---
-CONCERN_KEYWORDS = {
-    "work": ["work", "job", "boss", "career", "project", "tasks", "office", "deadline"],
-    "relationship": ["partner", "wife", "husband", "girlfriend", "boyfriend", "relationship", "friend", "family", "parents", "children", "siblings"],
-    "financial": ["money", "financial", "bill", "debt", "rent", "salary", "expense", "cost"],
-    "health": ["health", "sick", "doctor", "illness", "sleep", "tired", "energy", "wellness"],
-    "education": ["school", "study", "exam", "university", "course", "assignment", "grade"],
-    "stress/anxiety": ["stress", "anxious", "overwhelmed", "nervous", "worry", "pressure", "burnout", "fear"]
+# 4. KeyBERT for Core Concerns Extraction
+# Using a smaller, faster sentence transformer model for embeddings
+try:
+    logger.info("Loading KeyBERT model (SentenceTransformer)...")
+    # 'all-MiniLM-L6-v2' is a good balance of speed and performance for sentence embeddings
+    sentence_model = SentenceTransformer('all-MiniLM-L6-v2')
+    kw_model = KeyBERT(model=sentence_model)
+    logger.info("✓ KeyBERT Model Loaded")
+except Exception as e:
+    logger.error(f"Failed to load KeyBERT model: {e}")
+    kw_model = None
+
+
+# --- Enhanced Core Concerns Detection (using KeyBERT and fallback keywords) ---
+# These are still useful for mapping KeyBERT's output to broader categories
+CONCERN_KEYWORDS_MAP = {
+    "work": ["work", "job", "boss", "career", "project", "tasks", "office", "deadline", "professional"],
+    "relationship": ["partner", "wife", "husband", "girlfriend", "boyfriend", "relationship", "friend", "family", "parents", "children", "siblings", "social"],
+    "financial": ["money", "financial", "bill", "debt", "rent", "salary", "expense", "cost", "budget"],
+    "health": ["health", "sick", "doctor", "illness", "sleep", "tired", "energy", "wellness", "physical", "mental"],
+    "education": ["school", "study", "exam", "university", "course", "assignment", "grade", "learning"],
+    "stress/anxiety": ["stress", "anxious", "overwhelmed", "nervous", "worry", "pressure", "burnout", "fear", "anxiety"],
+    "positive experience": ["happy", "joy", "excited", "good day", "celebrate", "success", "fun", "positive", "achievement"]
 }
 
-def detect_core_concerns(text):
+def detect_core_concerns_with_keybert(text):
+    concerns = set()
+    if kw_model:
+        try:
+            # Extract top 5 keywords/keyphrases from the text
+            # keyphrase_ngram_range=(1, 2) means it can extract single words or two-word phrases
+            keywords = kw_model.extract_keywords(text, keyphrase_ngram_range=(1, 2), stop_words='english', top_n=10)
+            logger.info(f"KeyBERT extracted keywords: {keywords}")
+            
+            # Map extracted keywords to predefined concern categories
+            for keyword, score in keywords:
+                keyword_lower = keyword.lower()
+                for concern_category, concern_keywords in CONCERN_KEYWORDS_MAP.items():
+                    if any(kw in keyword_lower for kw in concern_keywords) or \
+                       any(keyword_lower in kw for kw in concern_keywords): # Check if keyword is part of a concern keyword
+                        concerns.add(concern_category)
+        except Exception as e:
+            logger.error(f"KeyBERT extraction failed: {e}")
+            # Fallback to simple keyword detection if KeyBERT fails
+            concerns.update(detect_core_concerns_simple(text))
+    else:
+        # Fallback to simple keyword detection if KeyBERT model didn't load
+        concerns.update(detect_core_concerns_simple(text))
+            
+    return list(concerns)
+
+# Simple fallback keyword detection (if KeyBERT fails or is not loaded)
+def detect_core_concerns_simple(text):
     concerns = set()
     text_lower = text.lower()
-    for concern, keywords in CONCERN_KEYWORDS.items():
-        if any(keyword in text_lower for keyword in keywords):
-            concerns.add(concern)
+    for concern_category, concern_keywords in CONCERN_KEYWORDS_MAP.items():
+        if any(keyword in text_lower for keyword in concern_keywords):
+            concerns.add(concern_category)
     return list(concerns)
+
 
 # --- Improved Growth Tips ---
 GROWTH_TIPS_MAP = {
@@ -227,8 +272,8 @@ def analyze_journal():
         else:
             response["moodScore"] = 0.0 # Default to neutral if no emotions detected
 
-        # 3. Core Concerns (enhanced)
-        response["coreConcerns"] = detect_core_concerns(journal_text)
+        # 3. Core Concerns (enhanced with KeyBERT)
+        response["coreConcerns"] = detect_core_concerns_with_keybert(journal_text)
 
         # 4. Summarization
         if summarizer:
