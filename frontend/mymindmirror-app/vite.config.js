@@ -8,6 +8,8 @@ if (!crypto.hash) {
   };
 }
 
-export default defineConfig({
+export default defineConfig({ define: {
+            global: 'window',
+          },
   plugins: [react(), tailwindcss()],
 });
