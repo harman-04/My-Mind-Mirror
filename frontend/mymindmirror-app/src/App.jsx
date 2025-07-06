@@ -3,29 +3,17 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import ThemeToggle from './components/ThemeToggle';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import JournalPage from './pages/JournalPage'; // Import the new JournalPage
 
-// A simple component for a protected route, e.g., the main journal view
+// A simple component for a protected route
 const PrivateRoute = ({ children }) => {
   const isAuthenticated = localStorage.getItem('jwtToken'); // Check if token exists
   return isAuthenticated ? children : <Navigate to="/login" />;
 };
 
-// Placeholder for the Journal page for now
-function JournalPagePlaceholder() {
-  return (
-    <div className="w-full max-w-4xl flex-grow p-6 rounded-xl
-                    bg-white/70 dark:bg-black/30 backdrop-blur-md shadow-lg border border-white/30 dark:border-white/10
-                    transition-all duration-500 flex items-center justify-center">
-      <p className="font-inter text-2xl text-center text-[#5CC8C2] dark:text-[#B399D4]">
-        Welcome! This will be your Journal Dashboard.
-      </p>
-    </div>
-  );
-}
-
 function App() {
   return (
-    <Router> {/* Wrap the entire app with Router */}
+    <Router>
       <div className="min-h-screen flex flex-col items-center p-4
                       bg-gradient-to-br from-[#F8F9FA] to-[#E0E0E0]
                       dark:from-[#1E1A3E] dark:to-[#3A355C]
@@ -43,7 +31,7 @@ function App() {
 
         {/* Main Content Area - Renders components based on route */}
         <main className="w-full max-w-4xl flex-grow flex items-center justify-center">
-          <Routes> {/* Define routes here */}
+          <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             {/* Protected Route for Journal Page */}
@@ -51,7 +39,7 @@ function App() {
               path="/journal"
               element={
                 <PrivateRoute>
-                  <JournalPagePlaceholder /> {/* This will be your main Journal component */}
+                  <JournalPage /> {/* Now using the actual JournalPage */}
                 </PrivateRoute>
               }
             />
