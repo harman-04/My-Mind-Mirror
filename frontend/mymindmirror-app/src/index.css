@@ -3,3 +3,6 @@
 body {
   font-family: 'Inter', sans-serif;
 }
+
+
+@custom-variant dark (&:is(.dark *));
