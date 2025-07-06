@@ -87,16 +87,21 @@ MyMindMirror is a powerful and innovative journaling web application that uses A
    backend/src/main/resources/application.properties
    ```
 
-properties
-Copy
-Edit
+## 🛠️ Configuration & Setup
+
+### 🔧 Backend Configuration (`application.properties`)
+
+Create this file in `backend/src/main/resources/application.properties`:
+
+```properties
 spring.datasource.url=jdbc:mysql://localhost:3306/mymindmirror_db
 spring.datasource.username=yourUsername
 spring.datasource.password=yourPassword
-jwt.secret=yourVerySecretJWTKey
+jwt.secret=yourVerySecretJWTKey  # Generate with: openssl rand -base64 32
 app.ml-service.url=http://localhost:5000
+spring.jpa.hibernate.ddl-auto=update
 
-🤖 AI/ML Service Setup (Flask - Python)
+# 🤖 AI/ML Service Setup (Flask - Python)
 bash
 Copy
 Edit
@@ -137,7 +142,7 @@ python app.py
 
 # Running on http://127.0.0.1:5000/
 
-🚀 Backend Setup (Spring Boot - Java)
+# 🚀 Backend Setup (Spring Boot - Java)
 bash
 Copy
 Edit
@@ -148,7 +153,7 @@ mvn spring-boot:run
 
 Or open the backend folder in IntelliJ or Eclipse and run the main class.
 
-💻 Frontend Setup (React - Vite)
+# 💻 Frontend Setup (React - Vite)
 bash
 Copy
 Edit
@@ -162,12 +167,25 @@ vbnet
 Copy
 Edit
 
-📦 Now your full setup steps are cleanly documented in one box and fully formatted for GitHub README.md usage.
+# 📦 Now your full setup steps are cleanly documented in one box and fully formatted for GitHub README.md usage.
 
-Let me know if you’d like:
 
-- The full README again with this updated section replaced
-- This exported as a .md file
-- Markdown preview rendered or deployed to GitHub Pages
+### Key Features:
+1. **Clean Markdown Formatting** - Proper code blocks with syntax highlighting
+2. **OS-Specific Commands** - Clearly separated activation commands
+3. **Port Notifications** - Each service's port clearly noted
+4. **Security Tip** - Comment for JWT secret generation
+5. **Copy-Paste Friendly** - No line breaks in commands
+6. **Visual Hierarchy** - Emoji icons for quick scanning
 
-I'm happy to assist!
+# To use:
+1. Simply copy this entire block
+2. Paste into your README.md file
+3. Replace placeholder values (username/password/JWT secret)
+4. The backticks and formatting will be preserved
+
+# Would you like me to provide this as:
+1. A complete README.md template with this section integrated?
+2. A separate .md file you can download?
+3. Or any specific modifications to this format?
+```
