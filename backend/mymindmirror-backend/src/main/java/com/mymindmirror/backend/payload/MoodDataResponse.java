@@ -13,5 +13,5 @@ import java.time.LocalDate;
 @AllArgsConstructor // Lombok generates a constructor with all fields
 public class MoodDataResponse {
     private LocalDate date;
-    private Float moodScore;
+    private Double moodScore;
 }

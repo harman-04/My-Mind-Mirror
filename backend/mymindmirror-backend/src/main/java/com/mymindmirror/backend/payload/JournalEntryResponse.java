@@ -27,8 +27,8 @@ public class JournalEntryResponse {
     private UUID id;
     private LocalDate entryDate;
     private String rawText;
-    private Float moodScore;
-    private Map<String, Float> emotions; // Parsed from JSON string
+    private Double moodScore;
+    private Map<String, Double> emotions; // Parsed from JSON string
     private List<String> coreConcerns; // Parsed from JSON string
     private String summary;
     private List<String> growthTips; // Parsed from JSON string

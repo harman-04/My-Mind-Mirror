@@ -31,7 +31,7 @@ public class JournalEntry {
     private String rawText; // The original text written by the user
 
     @Column(nullable = true) // Mood score can be null if AI analysis fails or is pending
-    private Float moodScore; // Numerical representation of mood (-1.0 to 1.0)
+    private Double moodScore; // Numerical representation of mood (-1.0 to 1.0)
 
     @Column(columnDefinition = "TEXT", nullable = true) // Stores JSON string of emotions, can be long
     private String emotions; // JSON string: e.g., {"joy": 0.8, "sadness": 0.2}

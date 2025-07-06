@@ -85,7 +85,7 @@ public class JournalService {
         if (mlResponse != null) {
             try {
                 // Safely cast and convert types from ML service response
-                entryToSave.setMoodScore(((Number) mlResponse.get("moodScore")).floatValue());
+                entryToSave.setMoodScore(((Number) mlResponse.get("moodScore")).doubleValue());
 
                 // Convert Map/List objects from ML service response to JSON strings for database storage
                 // This is crucial because JPA's @Column(columnDefinition = "TEXT") stores strings.
