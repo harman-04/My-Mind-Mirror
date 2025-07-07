@@ -6,7 +6,7 @@ import com.mymindmirror.backend.payload.JournalEntryRequest;
 import com.mymindmirror.backend.payload.JournalEntryResponse;
 import com.mymindmirror.backend.payload.MoodDataResponse;
 import com.mymindmirror.backend.service.JournalService;
-import com.mymindmirror.backend.service.UserService; // To get the current authenticated user
+import com.mymindmirror.backend.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -23,31 +23,25 @@ import java.util.stream.Collectors;
 
 /**
  * REST Controller for managing journal entries.
- * Handles API requests related to creating, retrieving, and viewing journal data.
+ * Handles API requests related to creating, retrieving, updating, and deleting journal data.
  */
 @RestController
-@RequestMapping("/api/journal") // Base path for journal entry endpoints
+@RequestMapping("/api/journal")
 public class JournalController {
 
     private static final Logger logger = LoggerFactory.getLogger(JournalController.class);
 
     private final JournalService journalService;
-    private final UserService userService; // Injected to retrieve the current authenticated user
+    private final UserService userService;
 
-    // Constructor injection
     public JournalController(JournalService journalService, UserService userService) {
         this.journalService = journalService;
         this.userService = userService;
     }
 
-    /**
-     * Helper method to get the currently authenticated user from Spring Security context.
-     * @return The User entity of the authenticated user.
-     * @throws RuntimeException if the user cannot be found (should not happen for authenticated users).
-     */
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName(); // Get username from SecurityContext
+        String username = authentication.getName();
         logger.debug("Attempting to retrieve current user: {}", username);
         return userService.findByUsername(username)
                 .orElseThrow(() -> {
@@ -65,7 +59,7 @@ public class JournalController {
     public ResponseEntity<JournalEntryResponse> createJournalEntry(@RequestBody JournalEntryRequest request) {
         logger.info("Received request to create/update journal entry.");
         try {
-            User currentUser = getCurrentUser(); // Get the authenticated user
+            User currentUser = getCurrentUser();
             JournalEntry savedEntry = journalService.saveJournalEntry(currentUser, request.getText());
             logger.info("Journal entry saved/updated successfully for user {}.", currentUser.getUsername());
             return ResponseEntity.status(HttpStatus.CREATED).body(new JournalEntryResponse(savedEntry));
@@ -76,19 +70,58 @@ public class JournalController {
     }
 
     /**
-     * Retrieves a list of journal entries for the authenticated user within a specified date range.
-     * @param startDate Optional start date (YYYY-MM-DD). Defaults to 30 days ago.
-     * @param endDate Optional end date (YYYY-MM-DD). Defaults to today.
-     * @return ResponseEntity with a list of JournalEntryResponse objects.
+     * Updates an existing journal entry for the authenticated user.
+     * @param id The UUID of the journal entry to update.
+     * @param request JournalEntryRequest containing the updated raw text.
+     * @return ResponseEntity with the updated JournalEntryResponse.
      */
+    @PutMapping("/{id}")
+    public ResponseEntity<JournalEntryResponse> updateJournalEntry(@PathVariable UUID id, @RequestBody JournalEntryRequest request) {
+        logger.info("Received request to update journal entry with ID: {}", id);
+        try {
+            User currentUser = getCurrentUser();
+            JournalEntry updatedEntry = journalService.updateJournalEntry(id, currentUser, request.getText());
+            logger.info("Journal entry with ID {} updated successfully for user {}.", id, currentUser.getUsername());
+            return ResponseEntity.ok(new JournalEntryResponse(updatedEntry));
+        } catch (IllegalArgumentException e) {
+            logger.warn("Update failed for entry ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null); // Or 404/403 depending on specific error
+        } catch (Exception e) {
+            logger.error("Error updating journal entry with ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Deletes a journal entry for the authenticated user.
+     * @param id The UUID of the journal entry to delete.
+     * @return ResponseEntity with no content on success.
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteJournalEntry(@PathVariable UUID id) {
+        logger.info("Received request to delete journal entry with ID: {}", id);
+        try {
+            User currentUser = getCurrentUser();
+            journalService.deleteJournalEntry(id, currentUser);
+            logger.info("Journal entry with ID {} deleted successfully for user {}.", id, currentUser.getUsername());
+            return ResponseEntity.noContent().build(); // 204 No Content
+        } catch (IllegalArgumentException e) {
+            logger.warn("Delete failed for entry ID {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build(); // Or 404/403 depending on specific error
+        } catch (Exception e) {
+            logger.error("Error deleting journal entry with ID {}: {}", id, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
     @GetMapping("/history")
     public ResponseEntity<List<JournalEntryResponse>> getJournalHistory(
             @RequestParam(required = false) String startDate,
             @RequestParam(required = false) String endDate) {
         logger.info("Received request for journal history.");
         User currentUser = getCurrentUser();
-        LocalDate start = LocalDate.now().minusDays(30); // Default to last 30 days
-        LocalDate end = LocalDate.now(); // Default to today
+        LocalDate start = LocalDate.now().minusDays(30);
+        LocalDate end = LocalDate.now();
 
         try {
             if (startDate != null) {
@@ -99,24 +132,17 @@ public class JournalController {
             }
         } catch (DateTimeParseException e) {
             logger.error("Invalid date format provided: {}. Using default date range.", e.getMessage());
-            return ResponseEntity.badRequest().body(null); // Or return empty list, depending on desired behavior
+            return ResponseEntity.badRequest().body(null);
         }
 
         List<JournalEntry> entries = journalService.getJournalEntriesForUser(currentUser, start, end);
         logger.info("Found {} journal entries for user {} in range {} to {}.", entries.size(), currentUser.getUsername(), start, end);
-        // Convert entities to DTOs before sending to frontend
         List<JournalEntryResponse> responses = entries.stream()
                 .map(JournalEntryResponse::new)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
     }
 
-    /**
-     * Retrieves mood data points for charting for the authenticated user within a specified date range.
-     * @param startDate Optional start date (YYYY-MM-DD). Defaults to 30 days ago.
-     * @param endDate Optional end date (YYYY-MM-DD). Defaults to today.
-     * @return ResponseEntity with a list of MoodDataResponse objects.
-     */
     @GetMapping("/mood-data")
     public ResponseEntity<List<MoodDataResponse>> getMoodData(
             @RequestParam(required = false) String startDate,
@@ -143,18 +169,13 @@ public class JournalController {
         return ResponseEntity.ok(moodData);
     }
 
-    /**
-     * Retrieves a single journal entry by its ID for the authenticated user.
-     * @param id The UUID of the journal entry.
-     * @return ResponseEntity with the JournalEntryResponse.
-     */
     @GetMapping("/{id}")
     public ResponseEntity<JournalEntryResponse> getJournalEntry(@PathVariable UUID id) {
         logger.info("Received request for journal entry with ID: {}.", id);
         User currentUser = getCurrentUser();
         return journalService.getJournalEntryById(id)
-                .filter(entry -> entry.getUser().getId().equals(currentUser.getId())) // Ensure user owns the entry
-                .map(JournalEntryResponse::new) // Convert to DTO
+                .filter(entry -> entry.getUser().getId().equals(currentUser.getId()))
+                .map(JournalEntryResponse::new)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> {
                     logger.warn("Journal entry with ID {} not found or not owned by user {}.", id, currentUser.getUsername());
